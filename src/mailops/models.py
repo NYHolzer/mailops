@@ -9,6 +9,7 @@ class EmailContent:
     text: str = ""
     html: str = "" 
 
+@dataclass(frozen=True)
 class EmailMessage:
     message_id: str
     thread_id: Optional[str]
