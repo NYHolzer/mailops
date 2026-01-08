@@ -11,11 +11,11 @@ class Rule:
     condition: Callable[[EmailMessage], bool]
     action: str #e.g. "print", "archive", "delete", "clickup"
 
-class RuleEngine:
-    def __init__(self, rules: Iterable[Rule]) -> None:
-        self.rules = list(rules)
+class RulesEngine:
+    def __init__(self, rules):
+        self._rules = list(rules)
 
-    def first_match(self, msg: EmailMessage) -> Optional[Rule]:
+    def first_match(self, msg):
         for rule in self._rules:
             if rule.predicate(msg):
                 return rule
