@@ -116,8 +116,12 @@ class GmailClient:
                         "and place it there (or set MAILOPS_GMAIL_CLIENT_SECRET)."
                     )
                 flow = InstalledAppFlow.from_client_secrets_file(str(client_secret), SCOPES)
-                creds = flow.run_local_server(port=0)
-
+                try:
+                    # Best UX when localhost callbacks work.
+                    creds = flow.run_local_server(port=0, open_browser=True)
+                except Exception:
+                    # WSL/headless fallback: user opens URL manually and pastes code.
+                    creds = flow.run_console()
             token_path.write_text(creds.to_json(), encoding="utf-8")
 
         return GmailClient(creds)
