@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from mailops.actions.print_action import PrintConfig, email_to_pdf, print_email
-from mailops.models import EmailMessage
+from mailops.models import EmailContent, EmailMessage
 
 
 def test_email_to_pdf_writes_pdf(tmp_path: Path):
@@ -9,10 +9,14 @@ def test_email_to_pdf_writes_pdf(tmp_path: Path):
         message_id="m1",
         thread_id="t1",
         from_email="sender@example.com",
+        to_emails=("me@example.com",),
         subject="Hello",
         date=None,
         snippet="snippet",
-        body_text="Line 1\nLine 2",
+        labels=frozenset({"INBOX"}),
+        content=EmailContent(text="Line 1\nLine 2"),
+        has_attachments=False,
+        attachment_count=0,
     )
     out = tmp_path / "out.pdf"
     email_to_pdf(msg, out)
@@ -39,13 +43,16 @@ def test_print_email_invokes_lp(monkeypatch):
         message_id="m2",
         thread_id=None,
         from_email="sender@example.com",
+        to_emails=("me@example.com",),
         subject="Print Me",
         date=None,
         snippet="",
-        body_text="Body",
+        labels=frozenset({"INBOX"}),
+        content=EmailContent(text="Body"),
+        has_attachments=False,
+        attachment_count=0,
     )
     cfg = PrintConfig(printer_name="HP577dw")
-
     print_email(msg, cfg)
 
     assert calls["cmd"][0] == "lp"
