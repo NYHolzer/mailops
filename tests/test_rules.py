@@ -1,21 +1,22 @@
 from mailops.models import EmailMessage
-from mailops.rules import Rule, RuleEngine, all_of, match_from_exact, subject_contains
+from mailops.rules import Rule, RulesEngine, all_of, match_from_exact, subject_contains
 
-def test_rules_engine_first_match() -> None:
+
+def test_rules_engine_first_match():
     msg = EmailMessage(
-        message_id="123",
+        message_id="abc",
         thread_id=None,
         from_email="orders@example.com",
-        subject="Order #12345"
+        subject="Order #12345",
         date=None,
         snippet="",
-        body_text-"Thank you for your order!",
+        body_text="Thanks for your order",
     )
 
-    rules = RuleEngine(
+    rules = RulesEngine(
         [
-            Rule("print_invoices", all_of(match_from_exact("billing@example.com"), subject_contains("Invoice")), "print"),
-            Rule("archive_orders", all_of(match_from_exact("orders@example.com"), subject_contains("Order")), "archive"),
+            Rule("print_invoices", all_of(match_from_exact("billing@example.com"), subject_contains("invoice")), "print"),
+            Rule("archive_orders", all_of(match_from_exact("orders@example.com"), subject_contains("order")), "archive"),
         ]
     )
 
