@@ -41,7 +41,7 @@ def email_to_pdf(msg: EmailMessage, output_path: Path) -> None:
 
     draw_line(f"From: {msg.from_email}")
     draw_line(f"Subject: {msg.subject}")
-    draw_line("f"Message-ID: {msg.message_id}")
+    draw_line(f"Message-ID: {msg.message_id}")
     draw_line("-"*90)
 
     body = msg.body_text or msg.snippet or ""
