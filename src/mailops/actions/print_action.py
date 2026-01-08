@@ -10,7 +10,7 @@ from typing import Optional
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 
-from .models import EmailMessage
+from ..models import EmailMessage
 
 @dataclass(frozen=True)
 class PrintConfig:
