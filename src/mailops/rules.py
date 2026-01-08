@@ -12,10 +12,10 @@ class Rule:
     action: str #e.g. "print", "archive", "delete", "clickup"
 
 class RulesEngine:
-    def __init__(self, rules):
+    def __init__(self, rules: Iterable[Rule]) -> None:
         self._rules = list(rules)
 
-    def first_match(self, msg):
+    def first_match(self, msg: EmailMessage) -> Optional[Rule]:
         for rule in self._rules:
             if rule.predicate(msg):
                 return rule
