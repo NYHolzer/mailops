@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from logging import config
 import os
 import subprocess
 import tempfile
@@ -44,7 +45,7 @@ def email_to_pdf(msg: EmailMessage, output_path: Path) -> None:
     draw_line(f"Message-ID: {msg.message_id}")
     draw_line("-"*90)
 
-    body = msg.body_text or msg.snippet or ""
+    body = (msg.content.text or "").strip() or (msg.snippet or "")
     for raw_line in body.splitlines():
         #naive wrap: split long lines
         line = raw_line.strip()
@@ -71,7 +72,7 @@ def print_pdf(printer_name: str, pdf_path: Path, job_title: Optional[str] = None
     
 
 def print_email(msg: EmailMessage, config: PrintConfig) -> None:
-    job_title = f"{cfg.title_prefix}: {msg.subject}".strip()[:120]
+    job_title = f"{config.title_prefix}: {msg.subject}".strip()[:120]
 
     with tempfile.TemporaryDirectory() as tmpdir:
         pdf_path = Path(tmpdir) / "email_print.pdf"
