@@ -1,0 +1,12 @@
+pyproject.toml
+src/mailops/__init__.py
+src/mailops/models.py
+src/mailops/rules.py
+src/mailops.egg-info/PKG-INFO
+src/mailops.egg-info/SOURCES.txt
+src/mailops.egg-info/dependency_links.txt
+src/mailops.egg-info/requires.txt
+src/mailops.egg-info/top_level.txt
+src/mailops/actions/print_action.py
+tests/test_print_action.py
+tests/test_rules.py

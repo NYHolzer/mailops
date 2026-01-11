@@ -76,6 +76,10 @@ def infer_print_rule(rule_name: str, example_headers: list[dict[str, str]]) -> I
         addrs: list[str] = []
         for fv in from_vals:
             _, addr = parseaddr(fv)
+            # If parseaddr returns a non-email but we had one, or if it mangles a simple string
+            if "@" not in addr and "@" not in fv:
+                 # It's just a name, use the whole thing
+                 addr = fv
             addr = addr or fv
             addrs.append(addr.strip())
             if "@" in addr:

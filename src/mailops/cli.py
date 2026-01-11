@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 import sys
 from dataclasses import dataclass, replace
 from typing import Optional
 
-from .gmail_client import GmailClient, GmailMessageSummary
-from .search import SearchFilters, build_gmail_query
+from .gmail_client import GmailMessageSummary
+from .manager import Manager, SearchResult
+from .search import SearchFilters
 
 
 @dataclass
@@ -82,25 +81,25 @@ def configure() -> int:
       - Let user select example newsletter emails
       - Print selected message IDs (next step will infer rules)
     """
-    client = GmailClient.from_oauth()
+    mgr = Manager()
 
     filters = SearchFilters(text=None, from_addr=None, newer_than_days=7, unread_only=True, inbox_only=True)
     pager = _PagerState()
     history_tokens: list[Optional[str]] = [None]  # best-effort /prev by replaying pages
 
-    def run_search(page_token: Optional[str]) -> tuple[list[GmailMessageSummary], Optional[str]]:
-        q = build_gmail_query(filters)
-        print(f"\nQuery: {q}\n")
-        items, next_tok = client.search_messages(q, max_results=20, page_token=page_token)
+    def run_search(page_token: Optional[str]) -> SearchResult:
+        res = mgr.search(filters, max_results=20, page_token=page_token)
+        print(f"\nQuery: {mgr._rules_engine} (Filters applied internally)\n") # debug info
         pager.page_token = page_token
-        pager.next_page_token = next_tok
-        _print_results(items)
-        return items, next_tok
+        pager.next_page_token = res.next_page_token
+        _print_results(res.items)
+        return res
 
     print("\nMailOps Configure (v1)\n")
     _help()
 
-    items, _ = run_search(None)
+    last_res = run_search(None)
+    items = last_res.items
 
     while True:
         raw = input("mailops> ").strip()
@@ -118,7 +117,8 @@ def configure() -> int:
             filters = replace(filters, text=raw[3:].strip() or None)
             pager = _PagerState()
             history_tokens = [None]
-            items, _ = run_search(None)
+            last_res = run_search(None)
+            items = last_res.items
             continue
 
 
@@ -126,7 +126,8 @@ def configure() -> int:
             filters = replace(filters, from_addr=raw[6:].strip() or None)
             pager = _PagerState()
             history_tokens = [None]
-            items, _ = run_search(None)
+            last_res = run_search(None)
+            items = last_res.items
             continue
 
         if raw.startswith("/days "):
@@ -137,7 +138,8 @@ def configure() -> int:
             filters = replace(filters, newer_than_days=n)
             pager = _PagerState()
             history_tokens = [None]
-            items, _ = run_search(None)
+            last_res = run_search(None)
+            items = last_res.items
             continue
 
         if raw.startswith("/unread "):
@@ -148,7 +150,8 @@ def configure() -> int:
             filters = replace(filters, unread_only=val == "on")
             pager = _PagerState()
             history_tokens = [None]
-            items, _ = run_search(None)
+            last_res = run_search(None)
+            items = last_res.items
             continue
 
         if raw.startswith("/inbox "):
@@ -159,11 +162,13 @@ def configure() -> int:
             filters = replace(filters, inbox_only=val == "on")
             pager = _PagerState()
             history_tokens = [None]
-            items, _ = run_search(None)
+            last_res = run_search(None)
+            items = last_res.items
             continue
 
         if raw == "/show":
-            items, _ = run_search(pager.page_token)
+            last_res = run_search(pager.page_token)
+            items = last_res.items
             continue
 
         if raw == "/next":
@@ -171,7 +176,8 @@ def configure() -> int:
                 print("No next page.")
                 continue
             history_tokens.append(pager.next_page_token)
-            items, _ = run_search(pager.next_page_token)
+            last_res = run_search(pager.next_page_token)
+            items = last_res.items
             continue
 
         if raw == "/prev":
@@ -181,7 +187,8 @@ def configure() -> int:
                 continue
             history_tokens.pop()
             prev_token = history_tokens[-1]
-            items, _ = run_search(prev_token)
+            last_res = run_search(prev_token)
+            items = last_res.items
             continue
 
         # Otherwise, attempt selection

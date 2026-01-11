@@ -24,8 +24,8 @@ def test_infer_falls_back_to_from_domain_when_address_present():
     assert res.rule.match.from_domain == "example.com"
 
 
-def test_infer_falls_back_to_from_exact_when_no_domain_present():
-    headers = [{"From": "Some Newsletter"}]  # no @domain, cannot infer domain
+def test_infer_falls_back_to_from_exact_when_no_email_present():
+    headers = [{"From": "Some Newsletter"}]  # no email address
     res = infer_print_rule("ExactOnly", headers)
     assert res.confidence == "low"
     assert res.rule.match.from_exact == "Some Newsletter"

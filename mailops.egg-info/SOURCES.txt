@@ -1,0 +1,6 @@
+pyproject.toml
+mailops.egg-info/PKG-INFO
+mailops.egg-info/SOURCES.txt
+mailops.egg-info/dependency_links.txt
+mailops.egg-info/requires.txt
+mailops.egg-info/top_level.txt
