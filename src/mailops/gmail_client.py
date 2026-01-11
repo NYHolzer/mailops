@@ -208,3 +208,69 @@ class GmailClient:
 
     def add_label(self, message_id: str, label_id: str, user_id: str = "me") -> None:
         self.modify_labels(message_id, add=[label_id], user_id=user_id)
+
+    def get_message_full(self, message_id: str, user_id: str = "me") -> "EmailMessage":
+        """
+        Fetch full message content (including body) and return domain model.
+        """
+        from .models import EmailMessage, EmailContent
+
+        req = (
+            self._svc.users()
+            .messages()
+            .get(userId=user_id, id=message_id, format="full")
+        )
+        msg = req.execute()
+
+        payload = msg.get("payload", {}) or {}
+        headers = _parse_headers(payload)
+
+        from_email = _extract_email_address(headers.get("from", ""))
+        subject = headers.get("subject", "") or ""
+        date = _parse_rfc2822_date(headers.get("date", "") or "")
+        snippet = msg.get("snippet", "") or ""
+        label_ids = tuple(msg.get("labelIds", []) or [])
+        thread_id = msg.get("threadId")
+
+        # Parse body
+        text_parts: list[str] = []
+        html_parts: list[str] = []
+
+        def _traverse(p: dict[str, Any]):
+            mime_type = p.get("mimeType", "")
+            body = p.get("body", {})
+            data = body.get("data")
+            if data:
+                try:
+                    decoded = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
+                    if mime_type == "text/plain":
+                        text_parts.append(decoded)
+                    elif mime_type == "text/html":
+                        html_parts.append(decoded)
+                except Exception:
+                    pass  # skip undecodable parts
+
+            parts = p.get("parts", [])
+            for sub in parts:
+                _traverse(sub)
+
+        _traverse(payload)
+
+        content = EmailContent(
+            text="\n".join(text_parts),
+            html="\n".join(html_parts),
+        )
+
+        return EmailMessage(
+            message_id=message_id,
+            thread_id=thread_id,
+            from_email=from_email,
+            to_emails=(), # TODO: parse To header if needed
+            subject=subject,
+            date=date,
+            snippet=snippet,
+            labels=frozenset(label_ids),
+            content=content,
+            has_attachments=False, # simplifiction
+            attachment_count=0,
+        )

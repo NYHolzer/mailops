@@ -205,20 +205,77 @@ def configure() -> int:
         return 0
 
 
+def run_automation(argv: list[str]) -> int:
+    dry_run = "--dry-run" in argv
+    print(f"Running daily automation (dry_run={dry_run})...")
+    
+    mgr = Manager()
+    mgr.run_daily_automation(dry_run=dry_run)
+    print("Done.")
+    return 0
+
+
+def search_cli(argv: list[str]) -> int:
+    # helper for one-off search from CLI args
+    # mailops search --from "foo" --days 3
+    import argparse
+    parser = argparse.ArgumentParser(prog="mailops search")
+    parser.add_argument("--query", "-q", help="Full text query")
+    parser.add_argument("--sender", "--from", help="Sender address or domain")
+    parser.add_argument("--days", type=int, help="Newer than N days")
+    parser.add_argument("--unread", action="store_true", help="Unread only (default false if omitted)")
+    parser.add_argument("--archive", action="store_true", help="Archive results")
+    parser.add_argument("--delete", action="store_true", help="Delete results (trash)")
+    parser.add_argument("--dry-run", action="store_true", help="Dry run actions")
+
+    args = parser.parse_args(argv)
+
+    filters = SearchFilters(
+        text=args.query,
+        from_addr=args.sender,
+        newer_than_days=args.days,
+        unread_only=args.unread,
+        inbox_only=True
+    )
+
+    mgr = Manager()
+    res = mgr.search(filters, max_results=50)
+    
+    _print_results(res.items)
+
+    action = "archive" if args.archive else ("delete" if args.delete else None)
+    
+    if action and res.items:
+        print(f"\nPerforming action '{action}' on {len(res.items)} items...")
+        for item in res.items:
+            if not args.dry_run:
+                mgr.execute_action(item.message_id, action, "cli-bulk-action")
+            else:
+                print(f"[Dry Run] Would {action} {item.message_id}")
+    
+    return 0
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     argv = argv or sys.argv[1:]
     if not argv or argv[0] in ("-h", "--help", "help"):
         print(
             "Usage:\n"
             "  mailops configure\n"
-            "\nCommands:\n"
-            "  configure   interactive wizard to pick example newsletter emails\n"
+            "  mailops run [--dry-run]\n"
+            "  mailops search [options]\n"
         )
         return 0
 
     cmd = argv[0]
+    rest = argv[1:]
+
     if cmd == "configure":
         return configure()
+    if cmd == "run":
+        return run_automation(rest)
+    if cmd == "search":
+        return search_cli(rest)
 
     print(f"Unknown command: {cmd}")
     return 2
