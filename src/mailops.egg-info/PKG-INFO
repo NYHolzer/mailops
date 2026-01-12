@@ -3,5 +3,9 @@ Name: mailops
 Version: 0.1.0
 Requires-Python: >=3.10
 Requires-Dist: reportlab>=4.0.0
+Requires-Dist: google-api-python-client
+Requires-Dist: google-auth
+Requires-Dist: google-auth-oauthlib
+Requires-Dist: google-auth-httplib2
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0.0; extra == "dev"

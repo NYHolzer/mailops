@@ -39,6 +39,7 @@ class MatchCriteria:
     from_domain: Optional[str] = None
     from_exact: Optional[str] = None
     subject_contains: Optional[str] = None
+    subject_excludes: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -47,6 +48,7 @@ class MatchCriteria:
             "from_domain": self.from_domain,
             "from_exact": self.from_exact,
             "subject_contains": self.subject_contains,
+            "subject_excludes": self.subject_excludes,
         }
 
     @staticmethod
@@ -57,6 +59,7 @@ class MatchCriteria:
             from_domain=d.get("from_domain"),
             from_exact=d.get("from_exact"),
             subject_contains=d.get("subject_contains"),
+            subject_excludes=d.get("subject_excludes"),
         )
 
 

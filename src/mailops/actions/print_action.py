@@ -78,3 +78,31 @@ def print_email(msg: EmailMessage, config: PrintConfig) -> None:
         pdf_path = Path(tmpdir) / "email_print.pdf"
         email_to_pdf(msg, pdf_path)
         print_pdf(config.printer_name, pdf_path, job_title=job_title)
+
+def get_available_printers() -> list[str]:
+    """
+    List available printers using lpstat.
+    Returns a list of printer names.
+    """
+    try:
+        # lpstat -a lists accepting destinations
+        # Format: "Printer_Name accepting requests since ..."
+        res = subprocess.run(
+            ["lpstat", "-a"], 
+            check=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True
+        )
+        printers = []
+        for line in res.stdout.splitlines():
+            parts = line.split()
+            if parts:
+                printers.append(parts[0])
+        return sorted(printers)
+    except FileNotFoundError:
+        # lpstat not installed
+        return []
+    except subprocess.CalledProcessError:
+        # Error running command
+        return []

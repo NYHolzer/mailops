@@ -6,7 +6,7 @@ from typing import Optional, Sequence
 
 from .config import AppConfig, load_config
 from .gmail_client import GmailClient, GmailMessageSummary
-from .rules import RulesEngine
+from .rules import RulesEngine, rule_from_config
 from .search import SearchFilters, build_gmail_query, search_messages
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,9 @@ class Manager:
     ) -> None:
         self._client = client or GmailClient.from_oauth()
         self._config = config or load_config()
-        self._rules_engine = RulesEngine(self._config.print_rules)
+        self._rules_engine = RulesEngine(
+            rule_from_config(r) for r in self._config.print_rules
+        )
 
     def search(
         self,
@@ -103,36 +105,54 @@ class Manager:
             self.trash_message(message_id)
 
         elif action == "clickup":
-            logger.info("ClickUp integration not yet implemented.")
-            # Placeholder for future integration
+            from .actions.clickup_action import create_task_from_email, get_clickup_config
+            cfg = get_clickup_config()
+            if not cfg:
+                logger.error("ClickUp configuration missing (env vars). Cannot create task.")
+                return
+
+            summary = self._client.get_message_summary(message_id)
+            # Create partial EmailMessage for the action
+            from .models import EmailMessage, EmailContent
+            msg = EmailMessage(
+                message_id=summary.message_id,
+                thread_id=summary.thread_id,
+                from_email=summary.from_email,
+                to_emails=(),
+                subject=summary.subject,
+                date=summary.date,
+                snippet=summary.snippet,
+                labels=frozenset(summary.label_ids),
+                content=EmailContent(),
+                has_attachments=False,
+                attachment_count=0
+            )
+            
+            try:
+                create_task_from_email(msg, cfg)
+            except Exception:
+                pass # Error logged inside helper
 
         else:
             logger.warning(f"Unknown action: {action}")
 
-    def run_daily_automation(self, dry_run: bool = False) -> None:
+    def get_automation_plan(self, newer_than_days: int = 1) -> list[tuple[GmailMessageSummary, Rule]]:
         """
-        Check recent emails against rules and execute actions.
+        Generate a plan of actions by checking recent emails against rules.
         """
-        # 1. Fetch recent messages (last 24h)
-        # Using "newer_than:1d" to be safe and cover the "morning" run.
-        items, _ = search_messages(self._client, SearchFilters(newer_than_days=1, unread_only=False))
+        items, _ = search_messages(self._client, SearchFilters(newer_than_days=newer_than_days, unread_only=False))
         
         logger.info(f"Checking {len(items)} recent messages against {len(self._config.print_rules)} rules.")
-
         if not self._config.print_rules:
             logger.info("No rules configured.")
-            return
+            return []
 
+        from .models import EmailMessage, EmailContent
+        # Import Rule type for return annotation
+        from .rules import Rule
+
+        matches = []
         for item in items:
-            # Check rules. Converting summary to a lightweight model for rule matching.
-            # Currently rules match on headers, so summary is sufficient for matching.
-            # But we need to define how strict we want to be.
-            # If the rule needs body, we'd have to fetch full.
-            # For now, let's assume headers are enough.
-            
-            # We need to map item -> EmailMessage (partial) for the predicate
-            from .models import EmailMessage, EmailContent
-            
             partial_msg = EmailMessage(
                 message_id=item.message_id,
                 thread_id=item.thread_id,
@@ -142,15 +162,69 @@ class Manager:
                 date=item.date,
                 snippet=item.snippet,
                 labels=frozenset(item.label_ids),
-                content=EmailContent(), # Empty content for matching
+                content=EmailContent(),
                 has_attachments=False,
                 attachment_count=0
             )
 
             matched_rule = self._rules_engine.first_match(partial_msg)
             if matched_rule:
-                logger.info(f"Match: Rule '{matched_rule.name}' matched message {item.message_id}")
-                if not dry_run:
-                    self.execute_action(item.message_id, matched_rule.action, matched_rule.name)
-                else:
-                    logger.info(f"Dry run: matched action {matched_rule.action}")
+                matches.append((item, matched_rule))
+        
+        return matches
+
+    def execute_automation_plan(self, plan: list[tuple[GmailMessageSummary, "Rule"]]) -> None: # type: ignore
+        """
+        Execute the actions in the plan.
+        """
+        for item, rule in plan:
+            logger.info(f"Executing plan: Rule '{rule.name}' matched message {item.message_id}")
+            self.execute_action(item.message_id, rule.action, rule.name)
+
+    def run_daily_automation(self, dry_run: bool = False) -> None:
+        """
+        Check recent emails against rules and execute actions.
+        """
+        plan = self.get_automation_plan()
+        
+        for item, rule in plan:
+            if not dry_run:
+                logger.info(f"Match: Rule '{rule.name}' matched message {item.message_id}")
+                self.execute_action(item.message_id, rule.action, rule.name)
+            else:
+                logger.info(f"Dry run: matched action {rule.action} for rule {rule.name}")
+
+    def preview_rule(self, rule_config: "PrintRule", lookback_days: int = 7) -> list[GmailMessageSummary]:
+        """
+        Check which emails from the last N days would match a specific rule configuration.
+        Used for UI "Test Rule" feature.
+        """
+        # Fetch broader candidates (unread or read)
+        # We search 'newer_than:Nd'
+        # We don't filter by sender in the query because the rule might have complex exclusions
+        # that Gmail query doesn't handle easily, or we rely on the python predicate for exactness.
+        items, _ = search_messages(self._client, SearchFilters(newer_than_days=lookback_days, unread_only=False, inbox_only=False))
+        
+        # Convert config to matching rule
+        rule = rule_from_config(rule_config)
+        
+        from .models import EmailMessage, EmailContent
+        matches = []
+        for item in items:
+             partial_msg = EmailMessage(
+                message_id=item.message_id,
+                thread_id=item.thread_id,
+                from_email=item.from_email,
+                to_emails=(),
+                subject=item.subject,
+                date=item.date,
+                snippet=item.snippet,
+                labels=frozenset(item.label_ids),
+                content=EmailContent(),
+                has_attachments=False,
+                attachment_count=0
+            )
+             if rule.predicate(partial_msg):
+                 matches.append(item)
+        
+        return matches

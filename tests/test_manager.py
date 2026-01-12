@@ -88,18 +88,30 @@ def test_run_daily_automation_matches_rule(monkeypatch):
     mock_client.search_messages.return_value = ([item], None)
     
     # Mock config with rules
-    mock_rule = MagicMock()
-    mock_rule.name = "TestRule"
-    mock_rule.action = "archive"
+    # Mock config with real rules to pass __init__ logic
+    from mailops.config import PrintRule, MatchCriteria
+    
+    real_rule = PrintRule(
+        name="TestRule", 
+        action="archive", 
+        match=MatchCriteria(from_exact="sender@example.com")
+    )
+    
+    # We still mock the Rule object that RulesEngine returns if we mock the engine,
+    # but Manager.__init__ needs valid config to build the engine first.
     
     mock_config = MagicMock()
-    mock_config.print_rules = [mock_rule]
+    mock_config.print_rules = [real_rule]
     
     mgr = Manager(client=mock_client, config=mock_config)
     
     # Mock rules engine to return match
+    mock_rule_result = MagicMock()
+    mock_rule_result.name = "TestRule"
+    mock_rule_result.action = "archive"
+    
     mgr._rules_engine = MagicMock()
-    mgr._rules_engine.first_match.return_value = mock_rule
+    mgr._rules_engine.first_match.return_value = mock_rule_result
     
     mgr.run_daily_automation()
     
@@ -111,3 +123,56 @@ def test_run_daily_automation_matches_rule(monkeypatch):
     
     # Action was archive -> remove INBOX
     mock_client.modify_labels.assert_called_with("m1", remove=["INBOX"])
+
+def test_preview_rule(monkeypatch):
+    mock_client = MagicMock()
+    
+    # Mock search_messages
+    mock_search_messages = MagicMock()
+    monkeypatch.setattr("mailops.manager.search_messages", mock_search_messages)
+
+    # Mock config with no rules initially, as preview_rule takes a rule directly
+    mock_config = MagicMock()
+    mock_config.print_rules = [] # Ensure it's an empty list or similar
+    
+    mgr = Manager(client=mock_client, config=mock_config)
+
+    # Setup: 2 messages, one matches the rule, one does not.
+    msg_match = MagicMock(spec=GmailMessageSummary)
+    msg_match.message_id = "1"
+    msg_match.thread_id = "t1"
+    msg_match.subject = "Match Me"
+    msg_match.from_email = "sender@example.com"
+    msg_match.date = "2022-01-01"
+    msg_match.snippet = "snippet"
+    msg_match.label_ids = []
+
+    msg_no_match = MagicMock(spec=GmailMessageSummary)
+    msg_no_match.message_id = "2"
+    msg_no_match.thread_id = "t2"
+    msg_no_match.subject = "Ignore Me"
+    msg_no_match.from_email = "other@example.com"
+    msg_no_match.date = "2022-01-01"
+    msg_no_match.snippet = "snippet"
+    msg_no_match.label_ids = []
+    
+    mock_search_messages.return_value = ([msg_match, msg_no_match], None)
+    
+    # Define a rule that matches "Match Me"
+    from mailops.config import PrintRule, MatchCriteria
+    rule_config = PrintRule(
+        name="Test", 
+        match=MatchCriteria(subject_contains="Match"), 
+        action="print"
+    )
+    
+    # Call preview_rule
+    # Note: preview_rule uses rule_from_config -> real Rule object -> real predicate
+    # It does NOT use the mocked _rules_engine which is initialized in __init__
+    # This is fine, we want to test the logic of preview_rule using the passed config.
+    
+    matches = mgr.preview_rule(rule_config, lookback_days=7)
+    
+    assert len(matches) == 1
+    assert matches[0].message_id == "1"
+    assert matches[0].subject == "Match Me"

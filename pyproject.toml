@@ -10,6 +10,10 @@ dependencies = [
   "google-auth-httplib2",
 ]
 
+[project.scripts]
+mailops = "mailops.cli:main"
+
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0.0",

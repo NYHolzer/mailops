@@ -206,11 +206,47 @@ def configure() -> int:
 
 
 def run_automation(argv: list[str]) -> int:
-    dry_run = "--dry-run" in argv
-    print(f"Running daily automation (dry_run={dry_run})...")
+    import argparse
+    parser = argparse.ArgumentParser(prog="mailops run")
+    parser.add_argument("--dry-run", action="store_true", help="Only show what would happen")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+    args = parser.parse_args(argv)
     
     mgr = Manager()
-    mgr.run_daily_automation(dry_run=dry_run)
+    print("Checking for automation matches...")
+    plan = mgr.get_automation_plan()
+
+    if not plan:
+        print("No matches found.")
+        return 0
+
+    print(f"\nPlanned Actions ({len(plan)}):")
+    print(f"{'ACTION':<10} | {'RULE':<15} | {'SUBJECT':<40} | {'FROM'}")
+    print("-" * 80)
+    for item, rule in plan:
+        subj = (item.subject or "")[:38]
+        # Clean newlines from subject for display
+        subj = subj.replace("\n", " ").replace("\r", "")
+        print(f"{rule.action:<10} | {rule.name[:15]:<15} | {subj:<40} | {item.from_email}")
+    print("-" * 80)
+
+    if args.dry_run:
+        print("\nDry run complete. No actions taken.")
+        return 0
+
+    if not args.yes:
+        # Interactive check
+        try:
+            q = input(f"\nExecute these {len(plan)} actions? [y/N] ").strip().lower()
+        except EOFError:
+            q = "n"
+            
+        if q != 'y':
+            print("Aborted.")
+            return 0
+
+    print("\nExecuting...")
+    mgr.execute_automation_plan(plan)
     print("Done.")
     return 0
 
@@ -264,6 +300,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             "  mailops configure\n"
             "  mailops run [--dry-run]\n"
             "  mailops search [options]\n"
+            "  mailops ui [port]\n"
         )
         return 0
 
@@ -276,6 +313,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         return run_automation(rest)
     if cmd == "search":
         return search_cli(rest)
+    if cmd == "ui":
+        from .web_server import run_server
+        port = 8000
+        if rest and rest[0].isdigit():
+            port = int(rest[0])
+        run_server(port)
+        return 0
 
     print(f"Unknown command: {cmd}")
     return 2
