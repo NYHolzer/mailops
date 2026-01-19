@@ -4,3 +4,4 @@ __pycache__/
 secrets/
 *.db
 .env
+*.egg-info/
