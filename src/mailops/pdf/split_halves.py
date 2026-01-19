@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 from typing import Tuple
+import copy
 
 from pypdf import PdfReader, PdfWriter
 
@@ -23,13 +24,11 @@ def split_pdf_into_vertical_halves(pdf_bytes: bytes) -> bytes:
         h = float(page.mediabox.height)
         mid = h / 2.0
 
-        # TOP
-        top = page.deepcopy(page)
+        top = copy.deepcopy(page)
         _set_cropbox(top, (0.0, mid, w, h))
         writer.add_page(top)
 
-        # BOTTOM
-        bottom = page.deepcopy(page)
+        bottom = copy.deepcopy(page)
         _set_cropbox(bottom, (0.0, 0.0, w, mid))
         writer.add_page(bottom)
 
