@@ -4,7 +4,11 @@ version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
   "reportlab>=4.0.0",
-  "pypdf>=4.0.0",
+  "pypdf",
+  "pymupdf",      # thumbnails
+  "streamlit",    # review UI
+  "qrcode",       # optional: QR code for iPhone
+  "pillow",       # required by qrcode for image output
   "google-api-python-client",
   "google-auth",
   "google-auth-oauthlib",
@@ -17,6 +21,7 @@ mailops = "mailops.cli:main"
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0.0",
+  "streamlit"
 ]
 
 [tool.pytest.ini_options]

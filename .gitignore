@@ -3,5 +3,36 @@ __pycache__/
 *.pyc
 secrets/
 *.db
-.env
+*.env
+
+# Large local PDFs / fixtures
+fixtures/
+scripts/
+output/
+logs/
+legacy/
+
+# Virtual environments
+.venv/
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
 *.egg-info/
+src/*.egg-info/
+
+# Test / tool caches
+.pytest_cache/
+.mypy_cache/
+
+# Output artifacts (PDFs, thumbnails, jobs, logs)
+output/
+
+# Legacy or experimental code
+legacy/
+
+# OS / editor noise
+.DS_Store
+.vscode/
+.idea/
