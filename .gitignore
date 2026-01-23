@@ -4,3 +4,8 @@ __pycache__/
 secrets/
 *.db
 .env
+
+# Local / generated
+output/
+fixtures/
+legacy/
