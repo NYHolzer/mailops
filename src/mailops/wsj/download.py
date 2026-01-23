@@ -49,6 +49,26 @@ def _extract_state_pdf_url(url: str) -> Optional[str]:
         return decoded
     return None
 
+def _collect_pdf_urls_from_network(page) -> list[str]:
+    """
+    Best-effort: observe network traffic and return any URLs that look like PDFs.
+    WSJ often fetches PDFs via XHR/fetch rather than linking them directly.
+    """
+    seen: list[str] = []
+
+    def consider(url: str) -> None:
+        u = (url or "").strip()
+        if not u:
+            return
+        if ".pdf" in u.lower():
+            if u not in seen:
+                seen.append(u)
+
+    page.on("request", lambda req: consider(req.url))
+    page.on("response", lambda resp: consider(resp.url))
+
+    return seen
+
 
 def download_from_email_link(
     email_url: str,
@@ -92,6 +112,8 @@ def download_from_email_link(
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
             if page.url == "about:blank":
                 page = ctx.new_page()
+            
+            pdf_urls_seen = _collect_pdf_urls_from_network(page)
 
             # Try to navigate, capturing an immediate download if it occurs.
             try:
@@ -176,6 +198,19 @@ def download_from_email_link(
                         final_url=page.url,
                         message=f"Downloaded via browser download event: {out_path}",
                     )
+                
+                # Fallback: if we saw a PDF in network traffic, try the most recent one.
+                if pdf_urls_seen:
+                    candidate = pdf_urls_seen[-1]
+                    resp = page.request.get(candidate)
+                    if resp.ok:
+                        out_path.write_bytes(resp.body())
+                        return WsjDownloadResult(
+                            status="downloaded",
+                            final_url=page.url,
+                            extracted_pdf_url=candidate,
+                            message=f"Saved from network-observed PDF URL: {out_path}",
+                        )
 
                 return WsjDownloadResult(
                     status="needs_manual",
