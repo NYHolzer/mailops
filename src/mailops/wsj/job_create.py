@@ -10,7 +10,7 @@ from pypdf import PdfReader
 
 from mailops.jobs import new_job_dir, write_json
 from mailops.wsj.download import DEFAULT_PROFILE_DIR, WsjDownloadResult, download_from_email_link
-from mailops.pdf.text_density import suggest_exclude_indices  # adjust import if your function name differs
+from mailops.pdf.text_density import suggest_excludes_hybrid  # adjust import if your function name differs
 
 
 @dataclass(frozen=True)
@@ -104,7 +104,7 @@ def create_wsj_job_from_email_link(
     reader = PdfReader(str(imposed_pdf))
     pages = [{"page_id": f"p{i+1:03d}"} for i in range(len(reader.pages))]
 
-    suggested = suggest_exclude_indices(imposed_pdf.read_bytes())
+    suggested = suggest_excludes_hybrid(imposed_pdf.read_bytes())
 
     write_json(
         review_json,

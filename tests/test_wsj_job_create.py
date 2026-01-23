@@ -8,6 +8,7 @@ import pytest
 
 from mailops.wsj.job_create import create_wsj_job_from_email_link, make_job_id
 
+import mailops.wsj.job_create as jc
 
 def _minimal_pdf_bytes() -> bytes:
     return (
@@ -117,7 +118,7 @@ def test_create_job_writes_suggestions(tmp_path: Path, monkeypatch: pytest.Monke
 
     # Patch suggestion logic to a deterministic output
     import mailops.pdf.text_density as td
-    monkeypatch.setattr(td, "suggest_exclude_indices", lambda pdf_bytes: {0, 2})
+    monkeypatch.setattr(jc, "suggest_excludes_hybrid", lambda pdf_bytes: {0, 2})
 
     res = jc.create_wsj_job_from_email_link(
         email_url="https://example.com/wsjtrack",
