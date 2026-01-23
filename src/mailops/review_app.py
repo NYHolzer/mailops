@@ -205,10 +205,10 @@ def main() -> None:
 
     st.session_state["print_set"] = print_set
 
-    
-
     # Persist selection and compute excludes
     included_indices = sorted(print_set)
+    exclude_indices = sorted(set(range(len(pages))) - print_set)
+
     st.divider()
     st.subheader("Summary")
 
@@ -219,7 +219,6 @@ def main() -> None:
     st.code(", ".join([pages[i]["page_id"] for i in exclude_indices]) if exclude_indices else "(none)")
 
     st.session_state["print_set"] = print_set
-    exclude_indices = sorted(set(range(len(pages))) - print_set)
 
     st.divider()
     st.subheader("Finalize")
