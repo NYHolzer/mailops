@@ -1,0 +1,11 @@
+sources:
+  wsj:
+    gmail_label: "mailops/wsj"
+    kind: "wsj_print"
+    impose_split_halves: true
+    suggest_excludes: true
+  shul:
+    gmail_label: "mailops/shul"
+    kind: "attachment_pdf"
+    impose_split_halves: false
+    suggest_excludes: false

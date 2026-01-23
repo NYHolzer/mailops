@@ -9,6 +9,7 @@ dependencies = [
   "streamlit",    # review UI
   "qrcode",       # optional: QR code for iPhone
   "pillow",       # required by qrcode for image output
+  "playwright",
   "google-api-python-client",
   "google-auth",
   "google-auth-oauthlib",

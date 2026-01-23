@@ -4,6 +4,7 @@ __pycache__/
 secrets/
 *.db
 *.env
+*.json
 
 # Large local PDFs / fixtures
 fixtures/
@@ -21,6 +22,7 @@ __pycache__/
 *.pyo
 *.egg-info/
 src/*.egg-info/
+.playwright/
 
 # Test / tool caches
 .pytest_cache/
