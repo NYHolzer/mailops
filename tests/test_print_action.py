@@ -60,16 +60,28 @@ def test_print_email_invokes_lp(monkeypatch):
     assert "HP577dw" in calls["cmd"]
 
 def test_get_available_printers(monkeypatch):
-    from mailops.actions.print_action import get_available_printers
+    import subprocess
+    import mailops.actions.print_action as pa
     from unittest.mock import MagicMock
-    
+
     mock_run = MagicMock()
     # Mock return of lpstat -a
-    mock_run.return_value.stdout = "HP_OfficeJet accepting requests since Mon\nCanon_Pixel accepting requests since Tue\n"
-    
-    monkeypatch.setattr("mailops.actions.print_action.subprocess.run", mock_run)
-    
-    printers = get_available_printers()
-    
-    mock_run.assert_called_with(["lpstat", "-a"], check=True, stdout=-1, stderr=-1, text=True)
-    assert printers == ["Canon_Pixel", "HP_OfficeJet"] # Sorted
+    mock_run.return_value.stdout = (
+        "HP_OfficeJet accepting requests since Mon\n"
+        "Canon_Pixel accepting requests since Tue\n"
+    )
+
+    # Patch the actual module object used by get_available_printers
+    monkeypatch.setattr(pa.subprocess, "run", mock_run)
+
+    printers = pa.get_available_printers()
+
+    mock_run.assert_called_with(
+        ["lpstat", "-a"],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert printers == ["Canon_Pixel", "HP_OfficeJet"]  # Sorted
+
